@@ -2,7 +2,7 @@
 This module takes care of starting the API Server, Loading the DB and Adding the endpoints
 """
 import os
-from flask import Flask, request, jsonify, url_for
+from flask import Flask, request, jsonify, url_for, abort
 from flask_cors import CORS
 from utils import APIException, generate_sitemap
 from datastructures import FamilyStructure
@@ -15,6 +15,7 @@ CORS(app)
 
 # Create the jackson family object
 jackson_family = FamilyStructure("Jackson")
+
 
 
 # Handle/serialize errors like a JSON object
@@ -30,12 +31,46 @@ def sitemap():
 
 
 @app.route('/members', methods=['GET'])
-def handle_hello():
-    # This is how you can use the Family datastructure by calling its methods
-    members = jackson_family.get_all_members()
-    response_body = {"hello": "world",
-                     "family": members}
-    return jsonify(response_body), 200
+def get_members():
+    try:
+        members = jackson_family.get_all_members()
+        return jsonify(members), 200
+    except Exception:
+        abort(500)
+    
+
+@app.route('/members/<int:memebers_id>', methods=['GET'])
+def get_member(member_id):
+    try:
+        member=jackson_family.get_member(member_id)
+        if not member:
+            abort(404, description = f"Miembro con id: {member_id} no encontrado!")
+            return jsonify(member), 200
+    except Exception: 
+        abort(500)
+
+@app.route('/members', methods = ['POST'])
+def add_member():
+    data=request.get_json()
+    if not data or 'first_name' not in data or 'age' not in data or 'lucky_number' not in data:
+        abort(400, description= f"Faltan datos para completar el miembro")
+    try:
+        jackson_family.add_member(data)
+        return jsonify(data), 200
+    except Exception:
+        abort(500)
+
+@app.route('/members/<int:member_id>', methods=['DELETE'])
+def delete_member(member_id):
+    try:
+        deleted = jackson_family.delete_member(member_id)
+        if not deleted:
+            abort(404, f"El miembro con id: {member_id} no se ha encontrado!")
+            return jsonify({'done': True}), 200
+    except Exception:
+        abort(500)
+
+
 
 
 
